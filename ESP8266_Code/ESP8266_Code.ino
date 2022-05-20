@@ -706,22 +706,25 @@ void loop() {
   int job_len = last_block_hash.length() + expected_hash.length() + String(difficulty).length();
   Serial.println("Received job with size of " + String(job_len) + " bytes");
   expected_hash.toUpperCase();
+  uint8_t bytes_expected_hash[20];
+  for (uint8_t i = 0, j = 0; j < 20; i += 2, j++) {
+    bytes_expected_hash[j] = ((((expected_hash[i] & 0x1F) + 9) % 25) << 4) + ((expected_hash[i + 1] & 0x1F) + 9) % 25;
+  }
+  
   br_sha1_init(&sha1_ctx_base);
   br_sha1_update(&sha1_ctx_base, last_block_hash.c_str(), last_block_hash.length());
 
   float start_time = micros();
   max_micros_elapsed(start_time, 0);
 
-  String result = "";
   digitalWrite(LED_BUILTIN, HIGH);
   for (unsigned int duco_numeric_result = 0; duco_numeric_result < difficulty; duco_numeric_result++) {
     // Difficulty loop
     sha1_ctx = sha1_ctx_base;
     duco_numeric_result_str = String(duco_numeric_result);
     br_sha1_update(&sha1_ctx, duco_numeric_result_str.c_str(), duco_numeric_result_str.length());
-    br_sha1_out(&sha1_ctx, hashArray);
-    result = experimental::TypeConversion::uint8ArrayToHexString(hashArray, 20);
-    if (result == expected_hash) {
+    br_sha1_out(&sha1_ctx, hashArray);    
+    if (memcmp((const void *)hashArray, (const void *)bytes_expected_hash, sizeof(bytes_expected_hash)) == 0) {
       // If result is found
       unsigned long elapsed_time = micros() - start_time;
       float elapsed_time_s = elapsed_time * .000001f;
